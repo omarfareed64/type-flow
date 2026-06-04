@@ -38,6 +38,8 @@ import { TypingEngineService } from '../../../core/services/typing-engine.servic
         [value]="input"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
+        (keyup)="onKeyup($event)"
+        (blur)="capsLockOn = false"
         [readonly]="disabled"
         autocomplete="off"
         autocorrect="off"
@@ -45,6 +47,12 @@ import { TypingEngineService } from '../../../core/services/typing-engine.servic
         spellcheck="false"
         aria-label="Typing input"
       ></textarea>
+      @if (capsLockOn) {
+        <div class="typing-display__warning" role="status" aria-live="polite">
+          <strong>Caps Lock is ON</strong>
+          <span>Typing may not match the text.</span>
+        </div>
+      }
       <div class="typing-display__focus" aria-hidden="true">Click to focus</div>
     </div>
   `,
@@ -113,6 +121,51 @@ import { TypingEngineService } from '../../../core/services/typing-engine.servic
 
     .typing-display:not(:focus-within) .typing-display__focus {
       opacity: 0.8;
+    }
+
+    .typing-display__warning {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      max-width: min(18rem, calc(100% - 1.5rem));
+      padding: 0.65rem 0.8rem;
+      border-radius: 8px;
+      background: color-mix(in srgb, #facc15 28%, #111827);
+      border: 1px solid color-mix(in srgb, #facc15 70%, var(--border));
+      color: #fef3c7;
+      font-family: var(--sans);
+      font-size: 0.8rem;
+      line-height: 1.25;
+      box-shadow: 0 10px 28px color-mix(in srgb, #000 35%, transparent);
+      pointer-events: none;
+      animation: caps-warning-pulse 1.3s ease-in-out infinite;
+    }
+
+    .typing-display__warning strong {
+      color: #fff7d6;
+      font-size: 0.88rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .typing-display__warning span {
+      color: color-mix(in srgb, #fef3c7 82%, var(--muted));
+    }
+
+    @keyframes caps-warning-pulse {
+      0%,
+      100% {
+        transform: translateY(0);
+        box-shadow: 0 10px 28px color-mix(in srgb, #000 35%, transparent);
+      }
+      50% {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 34px color-mix(in srgb, #facc15 22%, transparent);
+      }
     }
 
     .char--pending {
@@ -187,6 +240,7 @@ export class TypingDisplayComponent implements OnChanges {
   displayEnd = 0;
   targetLength = 0;
   flashIndex: number | null = null;
+  capsLockOn = false;
   private prevInputLen = 0;
   private readonly leadingContextChars = 900;
   private readonly trailingContextChars = 2400;
@@ -281,6 +335,7 @@ export class TypingDisplayComponent implements OnChanges {
   }
 
   onKeydown(event: KeyboardEvent): void {
+    this.updateCapsLockState(event);
     if (event.key === 'Tab') {
       event.preventDefault();
       return;
@@ -288,6 +343,33 @@ export class TypingDisplayComponent implements OnChanges {
     if (event.ctrlKey && event.key === 'Enter') {
       event.preventDefault();
       this.restart.emit();
+      return;
+    }
+    if (event.key === 'Enter') {
+      this.handleEnterKey(event);
+    }
+  }
+
+  onKeyup(event: KeyboardEvent): void {
+    this.updateCapsLockState(event);
+  }
+
+  private updateCapsLockState(event: KeyboardEvent): void {
+    this.capsLockOn = event.getModifierState?.('CapsLock') ?? false;
+  }
+
+  private handleEnterKey(event: KeyboardEvent): void {
+    const target = this.engine.normalize(this.target);
+    const input = this.engine.normalize(this.input);
+    const expectedChar = target[input.length];
+
+    if (expectedChar === '\n') {
+      return;
+    }
+
+    event.preventDefault();
+    if (expectedChar === ' ') {
+      this.inputChange.emit(`${input} `);
     }
   }
 }
