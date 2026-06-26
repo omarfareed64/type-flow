@@ -4,8 +4,13 @@ const { YoutubeTranscript } = require('youtube-transcript');
 
 const app = express();
 const PORT = process.env['PORT'] || 3001;
+const FRONTEND_ORIGIN = process.env['FRONTEND_ORIGIN'] || '';
 
-app.use(cors());
+app.use(
+  cors({
+    origin: FRONTEND_ORIGIN || true,
+  })
+);
 app.use(express.json());
 
 function formatTranscript(items) {

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: typeflow-api
+    env: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run server
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: FRONTEND_ORIGIN
+        value: https://omarfareed64.github.io
